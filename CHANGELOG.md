@@ -1,5 +1,7 @@
 # Flash — Changelog
 
+> CURRENTLY STALE, UPDATING SOON
+
 Public milestones from Flash's development: new capabilities, meaningful improvements and fixes that affect the interface or authoring experience.
 
 **Flash is in early development and is not available as a public SDK yet.** These entries describe progress in the development implementation, not downloadable releases.
