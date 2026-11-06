@@ -1,12 +1,105 @@
 # Flash — Changelog
 
-> CURRENTLY STALE, UPDATING SOON
-
 Public milestones from Flash's development: new capabilities, meaningful improvements and fixes that affect the interface or authoring experience.
 
 **Flash is in early development and is not available as a public SDK yet.** These entries describe progress in the development implementation, not downloadable releases.
 
 [Explore Flash](https://mateosuarez.dev/flash) · [README](README.md) · [Roadmap](README.md#roadmap)
+
+## 2026-11-06 — Images, at the size you see them
+
+- **Added** images by source: a file shipped with the app, a photo on the device or a URL, in one line.
+- **Added** an image cache. Images are downloaded, read and decoded off the UI thread, at the size they are drawn: a large photo in a small box takes kilobytes of memory, not megabytes. Only what is on screen loads, the same image anywhere is one decode, and coming back to it is instant. Drawn bigger, a sharper copy takes over.
+- **Added** photos shown upright, turned the way the camera held them.
+- **Added** load and error callbacks on images. While an image loads, or if it fails, its box holds its place and shows its background.
+- **Improved** the shape of an app's project: everything that ships, code and assets, lives in one folder.
+
+## 2026-11-05 — Background work
+
+- **Added** background work: anything slow runs on a worker while the screen keeps moving, and its answer comes back to the UI thread, ready to drop into a signal. Jobs can be cancelled when the screen that started them goes.
+- **Improved** screens that read files, secure storage or query the system: they draw at once and fill in, without stuttering as they open.
+
+## 2026-11-04 — Audio recording
+
+- **Added** recording from the microphone, with a live level meter, asking for the permission at the moment it is needed.
+- **Improved** the native features' temporary files: cleaned up at every start, off the main thread.
+
+## 2026-11-03 — App configuration and build variants
+
+- **Added** `app.config.ts` (in development): the app's name, package, version and the native features it switches on, in one TypeScript file that generates the native app declarations.
+- **Added** three build variants, Development, Preview and Release, installable side by side.
+- **Improved** how an app is built: Flash ships prebuilt, so an app compiles only its own code.
+
+## 2026-10-30 — The router
+
+- **Added** the router (in development): path first, stacks with animated push and pop, the native swipe-back and the system back, nesting, and sheets as routes.
+
+## 2026-10-29 — Faster startup
+
+- **Improved** startup: fonts and shaders are prepared when the app is built, not on the phone at every launch. The first frame arrives about seven times sooner.
+
+## 2026-10-27 — Landscape at full frame rate
+
+- **Improved** landscape: each frame is drawn already turned to the panel, the way games do it, so the system has nothing left to rotate. Glass and blur follow the screen through rotation, split-screen and folding.
+
+## 2026-10-26 — The display and the system UI
+
+- **Added** dark or light following the system, as a signal.
+- **Added** the system bars: their icons' colour and immersive mode, with a safe area that stays stable while the bars come and go.
+- **Added** the display's refresh rate, asked for by the screen that needs it, and keeping the screen awake while something needs it.
+- **Added** orientation: following the phone, with a lock for the screen that needs one.
+
+## 2026-10-24 — Lists, context and hidden tabs
+
+- **Added** lists by key whose items keep their own state wherever they move, and play their own entrance and exit.
+- **Added** context: provide a value in a component and read it anywhere below.
+- **Added** hidden-but-alive content: skipped from layout and drawing, its state and scroll positions kept.
+- **Improved** element identity: every element keeps its identity from where it is written, whatever appears around it.
+- **Improved** drags, which now start from where the finger is the moment they win the touch, without a jump.
+- **Fixed** a field's caret after its text is replaced from outside, and a long press on an empty field.
+
+## 2026-10-21 — TypeScript on the device
+
+- **Added** my own bridgeless TypeScript VM, embedded in Flash, running on the device and calling into native code. The first step toward authoring Flash in TSX.
+
+## 2026-10-20 — Components
+
+- **Added** components with their own state: a setup that runs once, state per instance and a lifecycle with cleanup.
+- **Added** branches that animate out before they go and turn around when brought back mid-exit, their state intact.
+
+## 2026-10-19 — Text editing that feels native, and image fitting
+
+- **Added** native-feeling text editing: the caret floating under the finger, a glass magnifier, word selection with handles, the system's edit menu with the device's own items, and the long press each platform's users expect.
+- **Added** `objectFit` and `objectPosition`, as in CSS, and `aspectRatio`.
+- **Added** a background behind images, shown through transparent pixels and while they load.
+- **Fixed** the keyboard not coming back after being dismissed, and taps on an element that could be lost.
+- **Fixed** drawing order between different materials, so what is written on top is drawn on top.
+
+## 2026-10-18 — Network, audio, notifications and transforms
+
+- **Added** native features: HTTP from the platform's own stack, network status, audio playback, permissions as signals and local notifications.
+- **Added** transforms that translate and scale what is drawn without reflowing the layout.
+- **Added** text selection, the caret blinking on a timer, and text that scrolls inside its field.
+- **Fixed** a scroll view's rubber band jumping back while it moved clear of the keyboard.
+
+## 2026-10-17 — Every touch has one owner
+
+- **Added** a touch and gesture system: one arbiter owns each touch, nested scroll views follow the drag's direction, and buttons let go when a scroll takes over.
+- **Added** gestures on any element: pan with distance and velocity, tap, double tap and long press. Springs start at the drag's velocity, so a flick lands as fast as it was thrown.
+- **Added** gestures that run together: a sheet that takes over from its list in the same touch.
+- **Added** layers that let touches pass through, timers, and frame timing in the debug overlay.
+- **Improved** events, which are now plain callbacks.
+
+## 2026-10-15 — The keyboard, handled, and more native features
+
+- **Added** keyboard avoidance: scroll views and floating panels move clear of the keyboard, following it as it slides.
+- **Added** rubber-band scrolling and tapping to place the caret.
+- **Added** native features: the system pickers, the app's lifecycle and identity, the device's locale as a signal, device information and secure storage.
+
+## 2026-10-14 — The first native features
+
+- **Added** the clipboard, opening links and other apps, sharing through the system sheet, haptics, and the app's own files.
+- **Fixed** emoji getting mangled on their way to and from the platform, such as through the clipboard.
 
 ## 2026-10-06 — Native platform builtins
 

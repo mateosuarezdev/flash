@@ -190,7 +190,36 @@ A native flex layout engine runs inside the frame: no cross-language hop, no lay
 
 Layout, animation and GPU rendering belong to the native core. No worklets are needed to keep animation in that path. No mandatory UI / logic thread split to make the interface move smoothly.
 
-Multi-thread ready, without requiring it as the starting point.
+Multi-threaded where it pays: files, system calls and image decoding run on workers, while the UI stays on one thread you never have to synchronize.
+
+## Slow work. Off the screen.
+
+A screen draws at once. Flash's own slow work, such as decoding images, already runs on workers. Yours can too: hand anything that takes time (a file, the system keystore, a parse, a computation) to `Scheduler::Run`, and its answer comes back to the UI thread, ready to drop into a signal.
+
+```cpp
+auto& note = signal(std::string("loading..."));
+
+Scheduler::Run([] { std::string t; FileSystem::ReadText(path, t); return t; },   // on a worker
+               [&note](std::string t) { note.set(t); });                        // back on the UI thread
+```
+
+No locks, no threads to manage, no UI touched from the wrong thread. The answer is whatever the work returns, success or failure included. Cancel it when the screen goes, and it never arrives.
+
+**The screen never waits.**
+
+### Images, at the size you see them.
+
+```cpp
+image({ .src = "https://example.com/photo.jpg" },
+      { .width = Px(100), .height = Px(100), .objectFit = ObjectFit::Cover });
+```
+
+- **One line, any source.** A file shipped with the app, a photo on the device, a URL.
+- **Off the UI thread.** Downloaded, read and decoded in the background. The image's box holds its place until it arrives, so nothing jumps.
+- **Decoded at the size it is drawn.** A 4000×3000 photo in a 100-point box takes a few hundred kilobytes of memory, not the ~48 MB of the full picture. A grid of large photos scrolls smoothly. Open one full screen and a sharper copy takes over.
+- **Only what is on screen loads.** Images below the fold cost nothing until they scroll into view.
+- **Shared and kept.** The same image anywhere is one decode, and coming back to it is instant.
+- **Photos upright.** Turned the way the camera held them.
 
 ## Change the layout. Keep the flow.
 
@@ -286,14 +315,14 @@ Native capabilities are part of Flash’s foundation, exposed directly through o
 | Pickers                    | The system photo and file pickers. No permission: the user choosing is the consent.  |
 | HTTP & network             | Requests from the platform's own stack, and whether the device is online, and how.   |
 | Haptics                    | Feedback you can feel. Custom vibration patterns: *planned*.                         |
-| Audio                      | Instant sounds for the interface, and players for music, voice and remote streams.   |
+| Audio                      | Instant sounds for the interface, players for music, voice and remote streams, and recording from the microphone. |
 | Notifications              | Shown now or scheduled, surviving a reboot, the tap delivered to your app. Push notifications and the icon badge: *planned*. |
 | Permissions                | One model for every permission, as signals: the UI follows a change made in settings. |
 | Device & lifecycle         | Device information, locale and the app's lifecycle, as signals. Battery level and charging: *planned*. |
 | Keyboard & text editing    | The system keyboard in every type, and the system's own edit menu over Flash's fields. |
 | Display & system UI        | Dark or light as a signal, the system bars' icons and immersive mode, the display's refresh rate, keeping the screen awake while something needs it, which way the screen is and a lock for the screen that needs one. Screen brightness, blocking screenshots: *planned*. |
 | Accessibility settings     | The system's text size, bold text, high contrast, reduced motion and reduced transparency, as a signal. *Planned.* |
-| Camera, microphone & more  | Camera, microphone, location, contacts and an in-app media library, through the same model. *Planned.* |
+| Camera, location & more    | Camera, location, contacts and an in-app media library, through the same model. Saving files out to the device (a chosen folder, Downloads, the gallery). *Planned.* |
 | Sensors & motion           | Motion and orientation (tilt and parallax), compass, pressure, light, and step counts. *Planned.* |
 | Identity & payments        | Biometric confirmation, in-app purchases and subscriptions, the store's review prompt. *Planned.* |
 | Speech                     | Text read aloud with the device's voices, and dictation. *Planned.*                  |
@@ -301,7 +330,8 @@ Native capabilities are part of Flash’s foundation, exposed directly through o
 
 **A capability should be a call, not a package hunt.** Thin wrappers over native OS APIs, with availability checks where platforms differ. State the OS owns arrives as signals; answers that take time arrive on the UI thread, ready to drop into your own. No endless package management or third-party dependency drift.
 
-The configuration direction is **`app.config.ts`**: app identity, icons, enabled builtins and permissions in one TypeScript file, generating the native app declarations. Builtins that need nothing are simply there; only those with a cost, such as a permission, are switched on. *Planned.*
+The configuration direction is **`app.config.ts`** (*in development:* Android, with the app's name, package, version, a
+builtin's switch and build variants): app identity, icons, enabled builtins and permissions in one TypeScript file, generating the native app declarations. Builtins that need nothing are simply there; only those with a cost, such as a permission, are switched on. *Planned.*
 
 ### Batteries. Included too.
 
@@ -378,7 +408,7 @@ These examples introduce the API and authoring direction. Native TSX integration
 
 Flash is an early, independent technology in active development. **One developer. Built from scratch.**
 
-The native Android implementation runs today: the reactive core, components with their own state, lifecycle and context, exit animations with resurrection, lists whose items animate in and out, hidden tabs that keep their state, widgets, styling, instanced rendering, MSDF text, animation, structural motion and transforms, continuous corners, blur and experimental Liquid Glass. Text input with native-feeling editing (caret dragging, selection, handles, the magnifier, the system's edit menu), keyboard avoidance, the complete touch and gesture system, timers and twenty-two native builtins — from files and HTTP to audio, permissions, notifications, dark mode, the system bars, the refresh rate, keeping the screen awake and orientation — work on device too.
+The native Android implementation runs today: the reactive core, components with their own state, lifecycle and context, exit animations with resurrection, lists whose items animate in and out, hidden tabs that keep their state, widgets, styling, instanced rendering, MSDF text, animation, structural motion and transforms, continuous corners, blur and experimental Liquid Glass. Text input with native-feeling editing (caret dragging, selection, handles, the magnifier, the system's edit menu), keyboard avoidance, the complete touch and gesture system, timers, background work, images by source decoded at the size they are drawn, and twenty-three native builtins — from files and HTTP to audio playback and recording, permissions, notifications, dark mode, the system bars, the refresh rate, keeping the screen awake and orientation — work on device too.
 
 This README presents the technology and its full direction. Platforms, builtins, 3D and native TSX integration continue to evolve.
 
@@ -392,6 +422,9 @@ This README presents the technology and its full direction. Platforms, builtins,
 | **TV & connected / embedded devices** | Dedicated platform shells and input integration | Exploratory targets                                          |
 
 ### Latest progress
+
+- **November 2026** — Background work: anything slow runs on a worker while the screen keeps moving, its answer back on the UI thread. Images by source (a file in the app, a photo on the device, a URL) decoded off the UI thread at the size they are drawn, loading as they scroll into view, shared and kept.
+- **November 2026** — Audio recording from the microphone, asking for the permission at the moment it is needed, with a live level meter; the builtins' temporary files cleaned up at every start, off the main thread.
 
 - **October 2026** — Faster startup: fonts and shaders are prepared when the app is built, not on the phone at every launch, so the first frame arrives about seven times sooner.
 - **October 2026** — Landscape drawn the way games do it: each frame already turned to the panel, so the system has nothing left to rotate, at full frame rate; glass and blur following the screen through rotation, split-screen and folding.
@@ -430,7 +463,7 @@ A view of where Flash is going, rather than an internal task list or a promised 
 | **Layout**           | Closer CSS flexbox behavior, proportional grow factors, minimum-size semantics, line clamping and ellipsis, virtualized lists.                    |
 | **Motion**           | Shared elements across screens, rotation transforms, shapes that move apart from their content, per-corner radii, squash, stretch and wobble, merging and morphing — for any element. |
 | **Liquid Glass**     | Shared backdrop capture and blur optimization, animated glass properties, highlights that follow the touch.                                      |
-| **Native builtins**  | Camera, microphone, location, contacts, an in-app media library, push notifications, background audio with system media controls, accessibility settings, sensors, biometrics, in-app purchases, deep links, configured through `app.config.ts`. |
+| **Native builtins**  | Camera, location, contacts, an in-app media library, push notifications, background audio with system media controls, accessibility settings, sensors, biometrics, in-app purchases, deep links, configured through `app.config.ts`. |
 | **Batteries**        | Router: path first, tabs, stacks with native swipe-back, nesting, modals and sheets as routes. Data queries: caching, syncing, revalidation, local persistence, optimistic updates. Translations: industry-standard messages, plurals and locale formatting. |
 | **Components**       | Broader unstyled primitives and an optional Flash Kit: Flash's own design language and feel, with theme tokens. |
 | **Platforms**        | iOS, Windows, macOS and Linux; GLES fallback for older Android devices; public SDK packaging and a richer demo gallery.                     |
